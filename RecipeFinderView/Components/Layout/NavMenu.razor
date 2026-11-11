@@ -1,4 +1,8 @@
-﻿@using RecipeFinderView.Components.Shared
+﻿@using RecipeFinderView.Services
+@using RecipeFinderView.Components.Shared
+@inject UserSession UserSession
+@inject NavigationManager Navigation
+@implements IDisposable
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <Logo />
@@ -26,6 +30,42 @@
                 <span class="bi bi-person-plus-fill-nav-menu" aria-hidden="true"></span> הרשמה
             </NavLink>
         </div>
+        <div class="nav-item px-3">
+            @if (UserSession.IsLoggedIn)
+            {
+                <div class="d-flex align-items-center text-white px-3 py-2">
+                    <span class="me-2 fw-bold">שלום, @UserSession.Username</span>
+                    <button class="btn btn-outline-light btn-sm ms-2" @onclick="HandleLogout">
+                        התנתק
+                    </button>
+                </div>
+            }
+            else
+            {
+                <NavLink class="nav-link" href="login">
+                    <span class="bi bi-person-badge-fill" aria-hidden="true"></span> התחברות
+                </NavLink>
+            }
+        </div>
     </nav>
 </div>
 
+@code {
+    protected override void OnInitialized()
+    {
+        // רישום לאירוע השינוי בסשן - התפריט יתרענן אוטומטית בעדכון סטטוס
+        UserSession.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        // הסרת הרישום לאירוע בעת סגירת הרכיב
+        UserSession.OnChange -= StateHasChanged;
+    }
+
+    private void HandleLogout()
+    {
+        UserSession.Logout();
+        Navigation.NavigateTo("/");
+    }
+}

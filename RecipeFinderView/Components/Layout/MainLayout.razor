@@ -1,40 +1,58 @@
 ﻿@inherits LayoutComponentBase
+@implements IDisposable
+@inject UserSession UserSession
+@inject NavigationManager Navigation
 
-<!-- ======================================================== -->
-<!-- סרגל ניווט עליון (Navbar) - מסודר ונקי מימין לשמאל -->
-<!-- ======================================================== -->
-<header class="bg-white shadow-sm py-3 px-4 d-flex justify-content-between align-items-center">
-
-    <!-- 1. צד ימין: לוגו ושם האתר RecipeFinder -->
-    <div class="d-flex align-items-center gap-2">
-        <span class="bg-danger text-white rounded-circle d-inline-flex justify-content-center align-items-center shadow-sm fs-5" style="width: 40px; height: 40px;">
-            🍪
-        </span>
-        <span class="fw-bold fs-4 text-dark">RecipeFinder</span>
+<div class="top-bar px-4 py-2 bg-light border-bottom d-flex justify-content-between align-items-center">
+    <div class="brand-area">
+        <h4 class="m-0">RecipeFinder</h4>
     </div>
 
-    <!-- 2. מרכז: כפתור חזרה מהירה לדף הבית -->
-    <nav class="d-flex gap-3 fw-semibold">
-        <a href="/" class="text-decoration-none text-dark d-flex align-items-center gap-1">
-            <i class="bi bi-house-door"></i> דף הבית
-        </a>
-    </nav>
+    <div class="nav-links d-flex align-items-center gap-3">
+        <a href="" class="text-decoration-none">דף הבית</a>
 
-    <!-- 3. צד שמאל: כפתורי פעולה (כניסה ומועדפים) -->
-    <div class="d-flex align-items-center gap-2">
-        <a href="/login" class="btn btn-brand-green d-flex align-items-center gap-2">
-            <i class="bi bi-person"></i> כניסה
-        </a>
-        <button class="btn btn-light rounded-circle shadow-sm p-2 text-secondary" style="width: 42px; height: 42px;" title="המועדפים שלי">
-            <i class="bi bi-heart"></i>
-        </button>
+        @if (UserSession.IsLoggedIn)
+        {
+            <span class="fw-bold text-success">שלום, @UserSession.Username</span>
+            <button class="btn btn-outline-danger btn-sm" @onclick="HandleLogout">התנתק</button>
+        }
+        else
+        {
+            <a href="login" class="text-decoration-none">התחבר</a>
+            <a href="register" class="text-decoration-none">הרשמה</a>
+        }
     </div>
+</div>
 
-</header>
-
-<!-- ======================================================== -->
-<!-- אזור התוכן הדינמי -->
-<!-- ======================================================== -->
-<main>
+<div class="content px-4 py-3">
     @Body
-</main>
+</div>
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await UserSession.InitializeAsync();
+            UserSession.OnChange += OnUserSessionChanged;
+            StateHasChanged(); // מעדכן את המסך לאחר טעינת הנתונים ממה ששמור בדפדפן
+        }
+    }
+
+    private void OnUserSessionChanged()
+    {
+        // רענון אוטומטי של ה-Layout ברגע שהמשתמש מתחבר או מתנתק
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        UserSession.OnChange -= OnUserSessionChanged;
+    }
+
+    private async Task HandleLogout()
+    {
+        await UserSession.Logout();
+        Navigation.NavigateTo("/", true);
+    }
+}

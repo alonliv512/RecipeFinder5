@@ -3,7 +3,7 @@
     public class User : BaseEntity
     {
         public string Username { get; set; }
-        public string PasswordHash { get; set; }
+        public string PasswordHash { get; set; } = string.Empty;
         public int RoleID { get; set; }
         public string RoleName { get; set; }
         public bool IsActive { get; set; }

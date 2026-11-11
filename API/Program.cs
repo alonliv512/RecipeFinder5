@@ -12,16 +12,16 @@ if (string.IsNullOrEmpty(connectionString))
     throw new InvalidOperationException("Connection string 'DefaultConnection' was not found in configuration.");
 }
 
-// 2. יצירת מחרוזת החיבור המלאה הכוללת את שם מסד הנתונים
+// 2. אתחול בסיס הנתונים והטבלאות בהזנקה מול המחרוזת הבסיסית (ללא Database=...)
+await DatabaseInitializer.InitializeAsync(connectionString);
+
+// 3. יצירת מחרוזת החיבור המלאה הכוללת את שם מסד הנתונים עבור השרת
 var fullConnectionString = connectionString + ";Database=RecipeFinderDB;";
 
-// 3. הוספת ה-UserDB עם המחרוזת המלאה
+// 4. הוספת ה-UserDB עם המחרוזת המלאה
 builder.Services.AddScoped<UserDB>(provider => new UserDB(fullConnectionString));
 
 var app = builder.Build();
-
-// 4. אתחול בסיס הנתונים והטבלאות בהזנקה מול המחרוזת המלאה
-await DatabaseInitializer.InitializeAsync(fullConnectionString);
 
 if (app.Environment.IsDevelopment())
 {

@@ -1,6 +1,10 @@
 ﻿@page "/login"
 @rendermode InteractiveServer
+@using Model
 @using RecipeFinderView.Components.Shared
+@inject UserSession UserSession
+@inject NavigationManager Navigation
+@inject HttpClient Http
 <div class="container d-flex justify-content-center align-items-center" style="min-height: 85vh;" dir="rtl">
     <div class="card bg-white shadow-lg p-5 rounded-brand border-0 text-end" style="max-width: 450px; width: 100%;">
 
@@ -71,13 +75,36 @@
             var response = await Http.PostAsJsonAsync("api/users/login", loginDto);
 
             Console.WriteLine("סטטוס התשובה מהשרת: " + response.StatusCode);
-
             if (response.IsSuccessStatusCode)
             {
-                Navigation.NavigateTo("/");
+                Console.WriteLine("1. הבקשה הצליחה מול השרת!");
+
+                var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var loginResult = await response.Content.ReadFromJsonAsync<LoginResponseDto>(options);
+
+                if (loginResult != null)
+                {
+                    Console.WriteLine($"2. התקבלה תשובה מהשרת. Message: '{loginResult.Message}', User object exists: {loginResult.User != null}");
+                }
+
+                if (loginResult != null && loginResult.User != null)
+                {
+                    var loggedInUser = loginResult.User;
+                    Console.WriteLine($"3. משתמש נמצא! שם: '{loggedInUser.Username}', מזהה: {loggedInUser.Id}");
+
+                    await UserSession.Login(loggedInUser);
+                    Console.WriteLine("4. נשמר בהצלחה ב-UserSession וב-localStorage, עובר לדף הבית...");
+
+                    Navigation.NavigateTo("/", true);
+                }
+                else
+                {
+                    Console.WriteLine("שגיאה: loginResult או loginResult.User ריקים!");
+                }
             }
             else
             {
+                Console.WriteLine($"שגיאה מהשרת סטטוס: {response.StatusCode}");
                 errorMessage = "התחברות נכשלה. בדוק את שם המשתמש או הסיסמה שהזנת.";
             }
         }
@@ -86,5 +113,10 @@
             Console.WriteLine("שגיאה בתקשורת: " + ex.Message);
             errorMessage = $"אירעה שגיאה בחיבור לשרת: {ex.Message}";
         }
+    }
+    public class LoginResponseDto
+    {
+        public string Message { get; set; } = string.Empty;
+        public User User { get; set; } = new();
     }
 }

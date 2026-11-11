@@ -38,13 +38,15 @@ namespace DAL
                              VALUES (@Username, @PasswordHash, @RoleID, @IsActive, @Email);
                              SELECT LAST_INSERT_ID();";
 
+            // יצירת גיבוב מאובטח לסיסמה הרגילה שהמשתמש הקליד
+            string hashedPassword = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
+
             using var command = new MySqlCommand(query, connection);
             command.Parameters.AddWithValue("@Username", user.Username);
-            command.Parameters.AddWithValue("@PasswordHash", user.PasswordHash);
+            command.Parameters.AddWithValue("@PasswordHash", hashedPassword); // שולחים את הגיבוב ולא את הסיסמה הגלויה
             command.Parameters.AddWithValue("@RoleID", user.RoleID == 0 ? 2 : user.RoleID);
             command.Parameters.AddWithValue("@IsActive", user.IsActive);
             command.Parameters.AddWithValue("@Email", user.Email ?? string.Empty);
-
             var id = await command.ExecuteScalarAsync();
             return Convert.ToInt32(id);
         }
@@ -75,28 +77,25 @@ namespace DAL
             return count > 0;
         }
 
-        public async Task<User> CheckLoginAsync(string username, string passwordHash)
+        public async Task<User?> CheckLoginAsync(string username, string password)
         {
-            using var connection = new MySqlConnection(connectionString);
-            await connection.OpenAsync();
+            // ודא ששם הפונקציה תואם למה שקיים אצלך ב-DAL (למשל GetByUsernameAsync או דומה)
+            User? user = await GetUserByUsernameAsync(username);
 
-            string query = @"SELECT u.UserID, u.Username, u.PasswordHash, u.RoleID, r.RoleName, u.IsActive, u.Email 
-                             FROM Users u
-                             JOIN Roles r ON u.RoleID = r.RoleID
-                             WHERE u.Username = @Username AND u.PasswordHash = @PasswordHash AND u.IsActive = TRUE";
-
-            using var command = new MySqlCommand(query, connection);
-            command.Parameters.AddWithValue("@Username", username);
-            command.Parameters.AddWithValue("@PasswordHash", passwordHash);
-
-            using var reader = await command.ExecuteReaderAsync();
-            if (await reader.ReadAsync())
+            // משתמשים ב-user.Password כי כך נקרא השדה במחלקת User שלך
+            if (user != null && !string.IsNullOrEmpty(user.PasswordHash))
             {
-                return ReadUser(reader);
-            }
-            return null;
-        }
+                // BCrypt.Verify משווה את הסיסמה שהוקלדה מול הגיבוב השמור
+                bool isPasswordValid = BCrypt.Net.BCrypt.Verify(password, user.PasswordHash);
 
+                if (isPasswordValid)
+                {
+                    return user; // הסיסמה נכונה! מחזירים את אובייקט המשתמש
+                }
+            }
+
+            return null; // שם משתמש לא קיים או סיסמה שגויה
+        }
         public async Task<User> GetUserByIdAsync(int id)
         {
             using var connection = new MySqlConnection(connectionString);
@@ -151,18 +150,43 @@ namespace DAL
             return await command.ExecuteNonQueryAsync();
         }
 
-        public async Task<int> UpdatePasswordAsync(int userId, string newPasswordHash)
+        public async Task<int> UpdatePasswordAsync(int userId, string newPassword)
         {
             using var connection = new MySqlConnection(connectionString);
             await connection.OpenAsync();
 
+            // כאן אנחנו מבצעים את הגיבוב (Hash) בעזרת BCrypt בתוך שכבת ה-DAL עצמה!
+            string hashedPassword = BCrypt.Net.BCrypt.HashPassword(newPassword);
+
             string query = "UPDATE Users SET PasswordHash = @PasswordHash WHERE UserID = @UserID";
             using var command = new MySqlCommand(query, connection);
-            command.Parameters.AddWithValue("@PasswordHash", newPasswordHash);
+
+            // שולחים למסד הנתונים את הגיבוב המאובטח ולא את הסיסמה הגלויה
+            command.Parameters.AddWithValue("@PasswordHash", hashedPassword);
             command.Parameters.AddWithValue("@UserID", userId);
 
             return await command.ExecuteNonQueryAsync();
         }
-      
+        public async Task<User?> GetUserByUsernameAsync(string username)
+        {
+            using var connection = new MySqlConnection(connectionString);
+            await connection.OpenAsync();
+
+            string query = @"SELECT u.UserID, u.Username, u.PasswordHash, u.RoleID, r.RoleName, u.IsActive, u.Email 
+                     FROM Users u
+                     JOIN Roles r ON u.RoleID = r.RoleID
+                     WHERE u.Username = @Username";
+
+            using var command = new MySqlCommand(query, connection);
+            command.Parameters.AddWithValue("@Username", username);
+
+            using var reader = await command.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+            {
+                return ReadUser(reader);
+            }
+            return null; // אם לא נמצא משתמש בשם הזה
+        }
+
     }
 }

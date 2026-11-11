@@ -1,7 +1,8 @@
 using RecipeFinderView.Components;
-
+using RecipeFinderView.Services;
+ 
 var builder = WebApplication.CreateBuilder(args);
-
+builder.Services.AddScoped<UserSession>();
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();

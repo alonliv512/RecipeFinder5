@@ -1,6 +1,21 @@
 @API_HostAddress = http://localhost:5197
 
-GET {{API_HostAddress}}/weatherforecast/
+ GET {{API_HostAddress}}/api/users
+Accept: application/json
+### קבלת משתמש לפי ID ספציפי (למשל ID מספר 3)
+GET {{API_HostAddress}}/api/users/3
 Accept: application/json
 
 ###
+
+### הוספת משתמש חדש (POST)
+POST {{API_HostAddress}}/api/users
+Content-Type: application/json
+
+{
+  "username": "new_user",
+  "passwordHash": "123456",
+  "roleID": 2,
+  "email": "newuser@gmail.com",
+  "isActive": true
+}

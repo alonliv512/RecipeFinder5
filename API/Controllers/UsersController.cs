@@ -22,6 +22,13 @@ namespace API.Controllers
             try
             {
                 var users = await _userDB.GetAllUsersAsync();
+
+                // איפוס סיסמה עבור כל משתמש ברשימה משיקולי אבטחה
+                foreach (var user in users)
+                {
+                    user.PasswordHash = string.Empty;
+                }
+
                 return Ok(users);
             }
             catch (Exception ex)
@@ -41,6 +48,10 @@ namespace API.Controllers
                 {
                     return NotFound($"User with ID {id} not found.");
                 }
+
+                // איפוס הסיסמה לפני החזרה ללקוח
+                user.PasswordHash = string.Empty;
+
                 return Ok(user);
             }
             catch (Exception ex)
@@ -68,19 +79,22 @@ namespace API.Controllers
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
+
         // POST: api/users/login
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
         {
             try
             {
-                // שימוש בפונקציה הקיימת שבודקת שם משתמש וסיסמה במסד הנתונים
                 var user = await _userDB.CheckLoginAsync(loginDto.Username, loginDto.Password);
 
                 if (user == null)
                 {
                     return Unauthorized("שם משתמש או סיסמה שגויים.");
                 }
+
+                // איפוס הגיבוב לפני שליחתו בדפדפן
+                user.PasswordHash = string.Empty;
 
                 return Ok(new { Message = "התחברות בוצעה בהצלחה!", User = user });
             }
@@ -89,8 +103,7 @@ namespace API.Controllers
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
-
-    }  
+    }
 }
 
 // מחלקת ה-DTO להתחברות
